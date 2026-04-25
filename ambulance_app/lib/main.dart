@@ -6,10 +6,12 @@ import 'config/firebase_options.dart';
 import 'providers/auth_provider.dart' as app_auth;
 import 'providers/ambulance_provider.dart';
 import 'providers/hospital_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/hospital_selection_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,98 +39,114 @@ class AmbulanceApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => app_auth.AuthProvider()),
         ChangeNotifierProvider(create: (_) => AmbulanceProvider()),
         ChangeNotifierProvider(create: (_) => HospitalProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'Ambulance Smart Traffic',
-        debugShowCheckedModeBanner: false,
-        theme: _buildTheme(),
-        initialRoute: '/login',
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/signup': (context) => const SignupScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/hospitals': (context) => const HospitalSelectionScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Ambulance Smart Traffic',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            theme: _buildLightTheme(),
+            darkTheme: _buildDarkTheme(),
+            initialRoute: '/login',
+            routes: {
+              '/login': (context) => const LoginScreen(),
+              '/signup': (context) => const SignupScreen(),
+              '/home': (context) => const HomeScreen(),
+              '/hospitals': (context) => const HospitalSelectionScreen(),
+              '/settings': (context) => const SettingsScreen(),
+            },
+          );
         },
       ),
     );
   }
 
-  ThemeData _buildTheme() {
+  ThemeData _buildDarkTheme() {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF0A0E1A),
-      primaryColor: const Color(0xFF3B82F6),
+      scaffoldBackgroundColor: const Color(0xFF060B19),
+      primaryColor: const Color(0xFF00D2FF),
       colorScheme: const ColorScheme.dark(
-        primary: Color(0xFF3B82F6),       // Active blue
-        secondary: Color(0xFF22C55E),     // Available green
-        error: Color(0xFFEF4444),         // Emergency red
-        surface: Color(0xFF111827),
+        primary: Color(0xFF00D2FF),
+        secondary: Color(0xFF00E676),
+        error: Color(0xFFFF3366),
+        surface: Color(0xFF0D1426),
         onSurface: Colors.white,
       ),
       cardTheme: CardTheme(
-        color: const Color(0xFF1F2937),
+        color: const Color(0xFF162032),
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0A0E1A),
+        backgroundColor: Color(0xFF060B19),
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
+        titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: const Color(0xFF3A7BD5),
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1F2937),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF374151)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF374151)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        hintStyle: const TextStyle(color: Color(0xFF6B7280)),
+        fillColor: const Color(0xFF162032),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2D3748))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2D3748))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00D2FF), width: 2)),
       ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 28),
-        headlineMedium: TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 22),
-        titleLarge: TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 18),
-        bodyLarge: TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w400, fontSize: 16),
-        bodyMedium: TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w400, fontSize: 14),
-        labelLarge: TextStyle(
-            fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14),
+    );
+  }
+
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF0F4F8),
+      primaryColor: const Color(0xFF2563EB),
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF2563EB),
+        secondary: Color(0xFF16A34A),
+        error: Color(0xFFE11D48),
+        surface: Colors.white,
+        onSurface: Color(0xFF0F172A),
+      ),
+      cardTheme: CardTheme(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFFF0F4F8),
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+        iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: const Color(0xFF2563EB),
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
       ),
     );
   }

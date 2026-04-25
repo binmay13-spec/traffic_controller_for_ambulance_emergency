@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambulance Control — Professional Dashboard</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        /* ─── THEME VARIABLES ─── */
+        :root {
+            /* Default: Dark Theme */
+            --bg-base: #060b19;
+            --bg-glass: rgba(13, 20, 38, 0.7);
+            --bg-card: rgba(255, 255, 255, 0.02);
+            --bg-card-hover: rgba(255, 255, 255, 0.05);
+            --bg-stat: rgba(0, 0, 0, 0.2);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            
+            --text-main: #ffffff;
+            --text-sub: #8a9fc2;
+            
+            --emergency: #ff3366;
+            --emergency-glow: rgba(255, 51, 102, 0.4);
+            --available: #00e676;
+            --active-blue: #00d2ff;
+            
+            --gradient-accent: linear-gradient(135deg, #3a7bd5, #3a6073);
+            --gradient-red: linear-gradient(135deg, #ff758c, #ff7eb3);
+            --gradient-blue: linear-gradient(135deg, #00d2ff, #3a7bd5);
+            
+            --map-invert: 100%;
+            --map-hue: 180deg;
+            
+            --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --font-main: 'Outfit', sans-serif;
+        }
+
+        [data-theme="light"] {
+            --bg-base: #f0f4f8;
+            --bg-glass: rgba(255, 255, 255, 0.85);
+            --bg-card: rgba(255, 255, 255, 1);
+            --bg-card-hover: #f8fafc;
+            --bg-stat: #f1f5f9;
+            --border-glass: rgba(0, 0, 0, 0.08);
+            
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            
+            --emergency: #e11d48;
+            --emergency-glow: rgba(225, 29, 72, 0.4);
+            --available: #16a34a;
+            --active-blue: #2563eb;
+            
+            --gradient-accent: linear-gradient(135deg, #2563eb, #3b82f6);
+            --gradient-red: linear-gradient(135deg, #e11d48, #f43f5e);
+            --gradient-blue: linear-gradient(135deg, #2563eb, #3b82f6);
+            
+            /* No map inversion for light mode */
+            --map-invert: 0%;
+            --map-hue: 0deg;
+            
+            --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        /* ─── BASE LAYOUT ─── */
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease; }
+        
+        body { 
+            font-family: var(--font-main); 
+            background: var(--bg-base); 
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        [data-theme="dark"] body {
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(58, 123, 213, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 51, 102, 0.05), transparent 25%);
+        }
+
+        /* ─── NAVBAR ─── */
+        nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 40px; height: 80px;
+            background: var(--bg-glass);
+            border-bottom: 1px solid var(--border-glass);
+            backdrop-filter: blur(20px);
+            z-index: 100;
+        }
+        .brand { display: flex; align-items: center; gap: 15px; }
+        .brand h1 { font-size: 24px; font-weight: 800; letter-spacing: 1px; color: var(--text-main); }
+        .brand span.icon { font-size: 28px; }
+        
+        .badge {
+            font-size: 12px; font-weight: 800; padding: 6px 14px;
+            border-radius: 20px; letter-spacing: 1px;
+            background: rgba(22, 163, 74, 0.1); color: var(--available);
+            border: 1px solid rgba(22, 163, 74, 0.3);
+            text-transform: uppercase;
+        }
+        .badge.active {
+            background: rgba(225, 29, 72, 0.1); color: var(--emergency);
+            border-color: rgba(225, 29, 72, 0.4);
+            box-shadow: 0 0 20px var(--emergency-glow);
+            animation: pulse-border 1.5s infinite;
+        }
+
+        .nav-actions { display: flex; align-items: center; gap: 20px; }
+        .btn-icon {
+            background: transparent; color: var(--text-main);
+            border: 1px solid var(--border-glass);
+            border-radius: 50%; width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-icon:hover { background: var(--bg-card); transform: scale(1.05); }
+
+        /* ─── DASHBOARD GRID ─── */
+        .dashboard {
+            display: grid; grid-template-columns: 1fr 420px;
+            height: calc(100vh - 80px);
+        }
+
+        #map { width: 100%; height: 100%; z-index: 10; background: var(--bg-card); }
+
+        /* Map styling changes seamlessly via variables */
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution {
+            filter: invert(var(--map-invert)) hue-rotate(var(--map-hue)) brightness(95%) contrast(90%);
+            transition: filter 0.4s ease;
+        }
+
+        /* ─── PANEL & CARDS ─── */
+        .panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(25px);
+            border-left: 1px solid var(--border-glass);
+            padding: 30px;
+            overflow-y: auto;
+            display: flex; flex-direction: column; gap: 24px;
+            z-index: 20;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow-card);
+        }
+        .card:hover { background: var(--bg-card-hover); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-title { font-size: 13px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1.5px; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .stat-box {
+            background: var(--bg-stat);
+            border-radius: 16px; padding: 20px;
+            border: 1px solid var(--border-glass);
+            text-align: center;
+        }
+        .stat-icon { font-size: 24px; margin-bottom: 5px; }
+        .stat-val { font-size: 32px; font-weight: 800; background: var(--gradient-accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-val.red { background: var(--gradient-red); -webkit-background-clip: text; }
+        .stat-val.blue { background: var(--gradient-blue); -webkit-background-clip: text; }
+        .stat-label { font-size: 11px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; font-weight: 600; }
+
+        .hospital-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px; border-radius: 12px; margin-bottom: 12px;
+            background: var(--bg-stat);
+            border: 1px solid transparent;
+        }
+        .hospital-item:hover { border-color: var(--border-glass); transform: translateX(2px); }
+        
+        .h-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; color: var(--text-main); }
+        .h-status { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        .h-status.ready { color: var(--available); }
+        .h-status.busy { color: var(--emergency); }
+        
+        .h-beds { font-size: 20px; font-weight: 800; color: var(--active-blue); text-align: right; }
+
+        /* ─── MODALS ─── */
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+        .modal {
+            width: 440px; padding: 40px; text-align: center;
+            background: var(--bg-glass); border-radius: 30px;
+            border: 1px solid var(--border-glass);
+            box-shadow: var(--shadow-card);
+            backdrop-filter: blur(30px);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute; top: 20px; right: 20px;
+            background: none; border: none; color: var(--text-main); fill: var(--text-main);
+            font-size: 24px; cursor: pointer; opacity: 0.5; transition: 0.2s;
+        }
+        .modal-close:hover { opacity: 1; }
+        
+        .btn-primary {
+            width: 100%; padding: 18px; margin-top: 20px;
+            border-radius: 14px; border: none; font-family: var(--font-main);
+            font-size: 16px; font-weight: 800; color: white;
+            background: var(--gradient-accent); cursor: pointer;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+
+        /* ─── SETTINGS TOGGLE ─── */
+        .settings-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px; background: var(--bg-stat); border-radius: 16px;
+            margin-top: 25px; text-align: left; border: 1px solid var(--border-glass);
+        }
+        .settings-row label { font-weight: 700; font-size: 16px; color: var(--text-main); }
+        .settings-row span { font-size: 13px; color: var(--text-sub); display: block; margin-top: 2px;}
+        
+        /* Switch UI */
+        .switch { position: relative; display: inline-block; width: 56px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #64748b; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 22px; width: 22px;
+            left: 4px; bottom: 4px; background-color: white;
+            transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider { background-color: var(--active-blue); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.3); }
+            70% { box-shadow: 0 0 0 15px rgba(225, 29, 72, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <!-- LOGIN MODAL -->
+    <div id="login-overlay" class="overlay" style="display: flex;">
+        <div class="modal">
+            <div style="font-size: 40px; margin-bottom: 20px;">🚑</div>
+            <h2 style="font-size: 28px; margin-bottom: 10px; color: var(--text-main);">System Authenticated</h2>
+            <p style="color: var(--text-sub); margin-bottom: 30px">Welcome back, Admin</p>
+            <button class="btn-primary" onclick="startApp()">Access Dashboard</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-overlay" class="overlay">
+        <div class="modal">
+            <button class="modal-close" onclick="closeSettings()">✖</button>
+            <div style="font-size: 32px; margin-bottom: 15px;">⚙️</div>
+            <h2 style="font-size: 24px; color: var(--text-main);">Preferences</h2>
+            <p style="color: var(--text-sub);">Adjust your dashboard viewing experience.</p>
+            
+            <div class="settings-row">
+                <div>
+                    <label>Light Theme</label>
+                    <span>Toggle bright viewing mode</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button class="btn-primary" style="margin-top:30px" onclick="closeSettings()">Save & Close</button>
+        </div>
+    </div>
+
+    <!-- NAVBAR -->
+    <nav>
+        <div class="brand">
+            <span class="icon">🚑</span>
+            <h1>Emergency Command</h1>
+            <span id="status-badge" class="badge">SYSTEM READY</span>
+        </div>
+        <div class="nav-actions">
+            <div style="text-align: right;">
+                <div style="font-weight: 700; font-size: 14px; color: var(--text-main)">Global Admin</div>
+                <div style="font-size: 11px; color: var(--text-sub); font-weight: 600;">ADM-991 Node</div>
+            </div>
+            <button class="btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
+        </div>
+    </nav>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="dashboard">
+        <div id="map"></div>
+
+        <div class="panel">
+            <div class="card" id="tracking-card">
+                <div class="card-header">
+                    <span class="card-title">Live Telemetry</span>
+                    <span style="display:inline-block; width: 10px; height: 10px; background: var(--available); border-radius: 50%; box-shadow: 0 0 10px var(--available);"></span>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-val red" id="v-speed">--</div>
+                        <div class="stat-label">KM/H</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon">📍</div>
+                        <div class="stat-val blue" id="v-dist">--</div>
+                        <div class="stat-label">KM AWAY</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-glass);">
+                    <div class="stat-label" style="margin-bottom: 8px;">Target Destination</div>
+                    <div style="font-size: 20px; font-weight: 700; color: var(--text-main)" id="v-dest">Awaiting Signal...</div>
+                    <div style="color: var(--emergency); font-weight: 800; font-size: 15px; margin-top: 8px;" id="v-eta">ETA: N/A</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Network Hospitals</span>
+                </div>
+                <div id="hospital-list">
+                    <!-- Javascript populates this -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // --- State ---
+        let map;
+        let ambMarker;
+        const DEFAULT_CENTER = [17.6599, 75.9064];
+
+        // Ensure theme on load
+        if(localStorage.getItem('theme') === 'light') {
+            document.body.setAttribute('data-theme', 'light');
+            document.getElementById('theme-toggle').checked = true;
+        }
+
+        const fallbackHospitals = [
+            { name: 'City General Hospital', status: 'READY', beds: 15, lat: 17.6599, lng: 75.9064 },
+            { name: 'Solapur Medical Center', status: 'READY', beds: 8, lat: 17.6721, lng: 75.9232 },
+            { name: 'Emergency Care Unit', status: 'BUSY', beds: 0, lat: 17.6480, lng: 75.8950 },
+            { name: 'Ashwini Sahakari', status: 'READY', beds: 4, lat: 17.6650, lng: 75.9120 }
+        ];
+
+        // --- Core Functions ---
+        function startApp() {
+            document.getElementById('login-overlay').style.display = 'none';
+            initMap();
+            renderHospitals();
+            startDemoSimulation();
+        }
+
+        function toggleTheme() {
+            const isLight = document.getElementById('theme-toggle').checked;
+            document.body.setAttribute('data-theme', isLight ? 'light' : 'dark');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            
+            // Re-render markers if map exists to refresh styles against new theme colors
+            if (ambMarker) {
+                const accentColor = isLight ? '#2563eb' : '#00d2ff';
+                ambMarker.setStyle({ fillColor: accentColor });
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('settings-overlay').style.display = 'flex';
+        }
+        function closeSettings() {
+            document.getElementById('settings-overlay').style.display = 'none';
+        }
+
+        // --- Map & Rendering ---
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+
+            fallbackHospitals.forEach(h => {
+                const color = h.status === 'READY' ? '#16a34a' : '#e11d48'; // Adjust for both themes
+                L.circleMarker([h.lat, h.lng], {
+                    radius: 9, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
+                }).addTo(map).bindPopup(`<b>${h.name}</b><br/>Beds: ${h.beds}`);
+            });
+
+            const isLight = document.body.getAttribute('data-theme') === 'light';
+            ambMarker = L.circleMarker(DEFAULT_CENTER, {
+                radius: 12, fillColor: isLight ? '#2563eb' : '#00d2ff', color: '#fff', weight: 3, opacity: 1, fillOpacity: 1
+            }).addTo(map);
+        }
+
+        function renderHospitals() {
+            const list = document.getElementById('hospital-list');
+            list.innerHTML = '';
+            fallbackHospitals.forEach(h => {
+                const statusClass = h.status.toLowerCase();
+                list.innerHTML += `
+                    <div class="hospital-item">
+                        <div>
+                            <div class="h-name">${h.name}</div>
+                            <div class="h-status ${statusClass}">${h.status}</div>
+                        </div>
+                        <div>
+                            <div class="h-beds">${h.beds}</div>
+                            <div style="font-size: 10px; font-weight: 700; color: var(--text-sub)">BEDS</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- Telemetry Simulation ---
+        function startDemoSimulation() {
+            let lat = DEFAULT_CENTER[0]; let lng = DEFAULT_CENTER[1];
+            
+            const badge = document.getElementById('status-badge');
+            badge.innerText = '🚨 CODE RED: ACTIVE';
+            badge.classList.add('active');
+            
+            document.getElementById('v-dest').innerText = "Solapur Medical Center";
+
+            setInterval(() => {
+                lat += (Math.random() - 0.4) * 0.002;
+                lng += (Math.random() - 0.4) * 0.002;
+                
+                ambMarker.setLatLng([lat, lng]);
+                map.panTo([lat, lng]);
+
+                const speed = Math.floor(65 + Math.random() * 15);
+                const distance = (2.4 - Math.random() * 0.2).toFixed(1);
+                const eta = Math.max(1, Math.floor(distance / (speed / 60)));
+
+                document.getElementById('v-speed').innerText = speed;
+                document.getElementById('v-dist').innerText = distance;
+                document.getElementById('v-eta').innerText = `ESTIMATED ETA: ${eta} MIN`;
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
